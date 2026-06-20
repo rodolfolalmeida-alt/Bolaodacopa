@@ -92,6 +92,15 @@
   .rk .palp{color:var(--cinza);font-size:.85rem;font-variant-numeric:tabular-nums}
   .rk .ch{font-weight:800;font-variant-numeric:tabular-nums}
   .ch.hot{color:var(--verde)}
+  .grupo-titulo{
+    font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+    margin:18px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--linha)
+  }
+  .grupo-titulo.win{color:var(--amarelo)}
+  .grupo-titulo.out{color:var(--cinza)}
+  .rk.eliminado{opacity:.42;background:rgba(0,0,0,.15)}
+  .rk.eliminado .who{text-decoration:line-through;font-weight:600}
+  .rk.eliminado .palp{text-decoration:line-through}
   .empty{color:var(--cinza);font-size:.9rem;text-align:center;padding:14px}
   .pote{
     margin-top:14px;padding:16px;border-radius:12px;
@@ -142,7 +151,8 @@
         <div class="tname">HAITI</div>
       </div>
     </div>
-    <div class="clock" id="clock">19/06 · Encerrado</div>
+    <div class="clock" id="clock">Em andamento</div>
+    <p class="note" style="text-align:center;margin-top:8px">👆 Toque nos números pra atualizar o placar</p>
   </section>
 
   <!-- PROBABILIDADE -->
@@ -181,8 +191,8 @@
 const MATCH_ID = 0; // preenchido após achar a partida na API
 let state = {
   bra: 3, hti: 0,
-  minute: 90,       // minuto de jogo (0 = não começou)
-  phase: "FINAL",   // PRE | LIVE | FINAL
+  minute: 60,       // minuto de jogo (0 = não começou)
+  phase: "LIVE",    // PRE | LIVE | FINAL
   palpites: loadPalpites(),
 };
 
@@ -323,14 +333,45 @@ function renderRanking(){
     <div class="big">R$ ${pote},00</div>
     ${ganhoHtml}`;
 
-  // lista
-  box.innerHTML = scored.map((p,i)=>`
-    <div class="rk ${i===0?'lead':''}">
-      <span class="pos">${i+1}º</span>
-      <span class="who">${escapeHtml(p.nome)}${p.cravou?'<span class="tag-cravou">cravou</span>':''}</span>
-      <span class="palp">${p.bra} × ${p.hti}</span>
-      <span class="ch ${i===0?'hot':''}">${(p.chance*100).toFixed(0)}%</span>
-    </div>`).join("");
+  // separação: quem ainda pode cravar (palpite >= placar atual nos dois lados) vs eliminado
+  const aindaPossivel = p => (+p.bra) >= state.bra && (+p.hti) >= state.hti;
+
+  if(state.phase==="LIVE" || state.phase==="FINAL"){
+    const vivos = scored.filter(aindaPossivel);
+    const mortos = scored.filter(p=>!aindaPossivel(p));
+    let html = "";
+
+    const tituloVivos = state.phase==="FINAL"
+      ? `🏆 Ganhadores · cravaram ${state.bra}×${state.hti}`
+      : `🟢 Ainda no páreo · ${vivos.length}`;
+    html += `<div class="grupo-titulo win">${tituloVivos}</div>`;
+    html += vivos.map(p=>{
+      const crav = p.cravou;
+      return `
+      <div class="rk ${crav?'lead':''}">
+        <span class="pos">${crav?'🎯':'•'}</span>
+        <span class="who">${escapeHtml(p.nome)}${crav?'<span class="tag-cravou">cravando</span>':''}</span>
+        <span class="palp">${p.bra} × ${p.hti}</span>
+      </div>`;
+    }).join("");
+
+    html += `<div class="grupo-titulo out">❌ Sem chance · ${mortos.length} eliminados</div>`;
+    html += mortos.map(p=>`
+      <div class="rk eliminado">
+        <span class="pos">—</span>
+        <span class="who">${escapeHtml(p.nome)}</span>
+        <span class="palp">${p.bra} × ${p.hti}</span>
+      </div>`).join("");
+    box.innerHTML = html;
+  } else {
+    box.innerHTML = scored.map((p,i)=>`
+      <div class="rk ${i===0?'lead':''}">
+        <span class="pos">${i+1}º</span>
+        <span class="who">${escapeHtml(p.nome)}${p.cravou?'<span class="tag-cravou">cravou</span>':''}</span>
+        <span class="palp">${p.bra} × ${p.hti}</span>
+        <span class="ch ${i===0?'hot':''}">${(p.chance*100).toFixed(0)}%</span>
+      </div>`).join("");
+  }
 }
 
 // chance = prob. de acertar o vencedor + parcela de acertar placar exato
@@ -369,6 +410,23 @@ function paint(){
   document.getElementById("scoreHti").textContent = state.hti;
   setStatus(); renderProb(); renderRanking();
 }
+
+// edição manual do placar — toque nos números pra digitar o gol
+["scoreBra","scoreHti"].forEach(id=>{
+  const el=document.getElementById(id);
+  el.style.cursor="pointer";
+  el.title="Toque para editar o placar";
+  el.addEventListener("click",()=>{
+    const time = id==="scoreBra"?"Brasil":"Haiti";
+    const atual = id==="scoreBra"?state.bra:state.hti;
+    const v=prompt("Gols do "+time+":", atual);
+    if(v===null) return;
+    const n=Math.max(0,parseInt(v)||0);
+    if(id==="scoreBra") state.bra=n; else state.hti=n;
+    if(state.phase==="PRE"){ state.phase="LIVE"; state.minute=state.minute||45; }
+    paint();
+  });
+});
 
 //================== FOOTBALL-DATA.ORG ==================
 const TOKEN_KEY = "fd_token_mem";
