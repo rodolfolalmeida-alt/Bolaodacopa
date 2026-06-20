@@ -142,7 +142,7 @@
         <div class="tname">HAITI</div>
       </div>
     </div>
-    <div class="clock" id="clock">19/06 · 21:30 (Brasília)</div>
+    <div class="clock" id="clock">19/06 · Encerrado</div>
   </section>
 
   <!-- PROBABILIDADE -->
@@ -180,9 +180,9 @@
 //================== ESTADO ==================
 const MATCH_ID = 0; // preenchido após achar a partida na API
 let state = {
-  bra: 0, hti: 0,
-  minute: 0,        // minuto de jogo (0 = não começou)
-  phase: "PRE",     // PRE | LIVE | FINAL
+  bra: 3, hti: 0,
+  minute: 90,       // minuto de jogo (0 = não começou)
+  phase: "FINAL",   // PRE | LIVE | FINAL
   palpites: loadPalpites(),
 };
 
@@ -410,7 +410,7 @@ function startPolling(){ if(pollTimer) clearInterval(pollTimer); poll(); pollTim
 
 //================== INIT ==================
 renderPalpites(); paint();
-if(TOKEN) startPolling();
+// Atualização ao vivo desativada — resultado final fixado em 3x0.
 </script>
 </body>
 </html>
